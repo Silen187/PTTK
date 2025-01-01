@@ -131,7 +131,7 @@ export const deleteOrder = async (req, res) => {
     }
 
     // Đánh dấu đơn hàng là đã xóa
-    await order.update({ deleted: true });
+    await order.update({ deleted: true, status : "cancelled" });
 
     // (Optional) Xóa các item trong đơn hàng nếu cần
     // await OrderItem.destroy({ where: { order_id: id } });

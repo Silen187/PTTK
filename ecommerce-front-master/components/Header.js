@@ -127,6 +127,9 @@ const categories = [
   { id: 4, name: "Home & Garden" },
   { id: 5, name: "Beauty & Personal Care" },
   { id: 6, name: "Sports & Outdoors" },
+  { id: 7, name: "Toys" },
+  { id: 8, name: "Groceries" },
+  { id: 9, name: "Office Supplies" },
 ];
 
 export default function Header() {

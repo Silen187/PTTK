@@ -34,13 +34,13 @@ export default function Layout({ children }) {
 
   return (
     <div className="bg-bgGray min-h-screen">
-      <div className="flex justify-between items-center bg-white shadow-md p-4">
+      {/* <div className="flex justify-between items-center bg-white shadow-md p-4">
         <div className="flex items-center gap-4">
           <span className="text-gray-700 font-medium">
             Xin chào, {session?.user?.name || "User"}
           </span>
         </div>
-      </div>
+      </div> */}
       <div className="flex">
         <Nav show={showNav} />
         <div className="flex-grow p-4">{children}</div>
