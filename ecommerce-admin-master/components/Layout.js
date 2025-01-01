@@ -1,38 +1,49 @@
-import { useSession, signIn, signOut } from "next-auth/react"
+import { useSession } from "next-auth/react";
 import Nav from "@/components/Nav";
-import {useState} from "react";
+import { useState } from "react";
 import Logo from "@/components/Logo";
 
-export default function Layout({children}) {
-  const [showNav,setShowNav] = useState(false);
-  const { data: session } = useSession();
+export default function Layout({ children }) {
+  const [showNav, setShowNav] = useState(false);
+  const { data: session, status } = useSession();
+
+  if (status === "loading") {
+    return (
+      <div className="bg-bgGray w-screen h-screen flex items-center justify-center">
+        <p className="text-white">Đang tải...</p>
+      </div>
+    );
+  }
+
   if (!session) {
     return (
-      <div className="bg-bgGray w-screen h-screen flex items-center">
-        <div className="text-center w-full">
-          <button onClick={() => signIn('google')} className="bg-white p-2 px-4 rounded-lg">Login with Google</button>
+      <div className="bg-bgGray w-screen h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-black text-3xl font-bold mb-4">Xin chào</h1>
+          <p className="text-black-300 mb-8">Hãy đăng nhập để tiếp tục.</p>
+          <button
+            onClick={() => (window.location.href = "/auth/signin")}
+            className="bg-white text-blue-500 font-medium py-2 px-4 rounded-lg shadow-md hover:bg-gray-100"
+          >
+            Đăng nhập
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-bgGray min-h-screen ">
-      <div className="block md:hidden flex items-center p-4">
-        <button onClick={() => setShowNav(true)}>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-            <path fillRule="evenodd" d="M3 6.75A.75.75 0 013.75 6h16.5a.75.75 0 010 1.5H3.75A.75.75 0 013 6.75zM3 12a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75A.75.75 0 013 12zm0 5.25a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75a.75.75 0 01-.75-.75z" clipRule="evenodd" />
-          </svg>
-        </button>
-        <div className="flex grow justify-center mr-6">
-          <Logo />
+    <div className="bg-bgGray min-h-screen">
+      <div className="flex justify-between items-center bg-white shadow-md p-4">
+        <div className="flex items-center gap-4">
+          <span className="text-gray-700 font-medium">
+            Xin chào, {session?.user?.name || "User"}
+          </span>
         </div>
       </div>
       <div className="flex">
         <Nav show={showNav} />
-        <div className="flex-grow p-4">
-          {children}
-        </div>
+        <div className="flex-grow p-4">{children}</div>
       </div>
     </div>
   );

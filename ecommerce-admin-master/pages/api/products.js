@@ -1,38 +1,22 @@
-import {Product} from "@/models/Product";
-import {mongooseConnect} from "@/lib/mongoose";
-import {isAdminRequest} from "@/pages/api/auth/[...nextauth]";
+import {
+  getProduct,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+} from "@/controllers/productController";
 
-export default async function handle(req, res) {
-  const {method} = req;
-  await mongooseConnect();
-  await isAdminRequest(req,res);
-
-  if (method === 'GET') {
-    if (req.query?.id) {
-      res.json(await Product.findOne({_id:req.query.id}));
-    } else {
-      res.json(await Product.find());
-    }
-  }
-
-  if (method === 'POST') {
-    const {title,description,price,images,category,properties} = req.body;
-    const productDoc = await Product.create({
-      title,description,price,images,category,properties,
-    })
-    res.json(productDoc);
-  }
-
-  if (method === 'PUT') {
-    const {title,description,price,images,category,properties,_id} = req.body;
-    await Product.updateOne({_id}, {title,description,price,images,category,properties});
-    res.json(true);
-  }
-
-  if (method === 'DELETE') {
-    if (req.query?.id) {
-      await Product.deleteOne({_id:req.query?.id});
-      res.json(true);
-    }
+export default async function handler(req, res) {
+  switch (req.method) {
+    case "GET":
+      return await getProduct(req, res);
+    case "POST":
+      return await createProduct(req, res);
+    case "PUT":
+      return await updateProduct(req, res);
+    case "DELETE":
+      return await deleteProduct(req, res);
+    default:
+      res.setHeader("Allow", ["GET", "POST", "PUT", "DELETE"]);
+      res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }

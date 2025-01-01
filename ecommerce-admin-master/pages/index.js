@@ -1,19 +1,26 @@
 import Layout from "@/components/Layout";
-import {useSession} from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 export default function Home() {
-  const {data: session} = useSession();
-  return <Layout>
-    <div className="text-blue-900 flex justify-between">
-      <h2>
-        Hello, <b>{session?.user?.name}</b>
-      </h2>
-      <div className="flex bg-gray-300 gap-1 text-black rounded-lg overflow-hidden">
-        <img src={session?.user?.image} alt="" className="w-6 h-6"/>
-        <span className="px-2">
-          {session?.user?.name}
-        </span>
+  const { data: session, status } = useSession();
+
+  if (status === "loading") {
+    return <p>Loading...</p>;
+  }
+  console.log(session);
+  return (
+    <Layout>
+      <div className="text-blue-900 flex flex-col items-center mt-10">
+        <h2 className="text-3xl font-bold">
+          Xin chào, <b>{session?.user?.name || "Guest"}</b>
+        </h2>
+        <p className="mt-4 text-lg">
+          Email: <span className="text-gray-600">{session?.user?.email}</span>
+        </p>
+        <p className="mt-2">
+          Chức vụ: <span className="font-semibold text-green-600">{session?.user?.role === "admin" ? "Quản trị viên" : "Không"}</span>
+        </p>
       </div>
-    </div>
-  </Layout>
+    </Layout>
+  );
 }

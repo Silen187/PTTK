@@ -1,37 +1,71 @@
-import NextAuth, {getServerSession} from 'next-auth'
-import GoogleProvider from 'next-auth/providers/google'
-import {MongoDBAdapter} from "@next-auth/mongodb-adapter";
-import clientPromise from "@/lib/mongodb";
-
-const adminEmails = ['dawid.paszko@gmail.com'];
+import NextAuth from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { sequelize, User } from "@/lib/sequelize";
 
 export const authOptions = {
-  secret: process.env.SECRET,
+  secret: "18072003", // Để demo, không bảo mật cao
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_ID,
-      clientSecret: process.env.GOOGLE_SECRET
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        username: { label: "Tên đăng nhập", type: "text" },
+        password: { label: "Mật khẩu", type: "password" },
+      },
+      async authorize(credentials) {
+        const { username, password } = credentials;
+
+        // Tìm người dùng theo username
+        const user = await User.findOne({ where: { username } });
+
+        if (!user || password !== user.password) {
+          console.error("Tên đăng nhập hoặc mật khẩu không đúng");
+          return null;
+        }
+
+        // Kiểm tra vai trò
+        if (user.role !== "admin") {
+          console.error("Bạn không có quyền");
+          return null;
+        }
+
+        return {
+          id: user.id,
+          name: user.username,
+          email: user.email,
+          role: user.role,
+        };
+      },
     }),
   ],
-  adapter: MongoDBAdapter(clientPromise),
   callbacks: {
-    session: ({session,token,user}) => {
-      if (adminEmails.includes(session?.user?.email)) {
-        return session;
-      } else {
-        return false;
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.name = user.name;
+        token.email = user.email;
+        token.role = user.role;
       }
+      return token;
     },
+    async session({ session, token }) {
+      if (token) {
+        session.user = {
+          id: token.id,
+          name: token.name,
+          email: token.email,
+          role: token.role,
+        };
+      }
+      return session;
+    },
+  },
+  pages: {
+    signIn: "/auth/signin",
+    signOut: "/auth/signout",
+  },
+  session: {
+    strategy: "jwt",
   },
 };
 
 export default NextAuth(authOptions);
-
-export async function isAdminRequest(req,res) {
-  const session = await getServerSession(req,res,authOptions);
-  if (!adminEmails.includes(session?.user?.email)) {
-    res.status(401);
-    res.end();
-    throw 'not an admin';
-  }
-}
