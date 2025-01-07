@@ -1,32 +1,31 @@
+// /pages/api/orders.js
 import {
   getOrders,
   createOrder,
   updateOrder,
-  getOrderDetails,
   deleteOrder,
-} from "@/controllers/orderController";
+  getOrderDetails,
+} from "@/controllers/orderControllers";
 
 export default async function handler(req, res) {
   switch (req.method) {
     case "GET":
       if (req.query.id) {
-        // Lấy chi tiết một đơn hàng nếu có `id`
         return await getOrderDetails(req, res);
       }
-      // Lấy danh sách tất cả đơn hàng nếu không có `id`
       return await getOrders(req, res);
 
     case "POST":
-      return await createOrder(req, res); // Tạo đơn hàng mới
+      return await createOrder(req, res);
 
     case "PUT":
-      return await updateOrder(req, res); // Cập nhật đơn hàng
-    
+      return await updateOrder(req, res);
+
     case "DELETE":
-      return await deleteOrder(req, res); // Xóa đơn hàng
+      return await deleteOrder(req, res);
 
     default:
-      res.setHeader("Allow", ["GET", "POST", "PUT"]);
+      res.setHeader("Allow", ["GET", "POST", "PUT", "DELETE"]);
       res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }

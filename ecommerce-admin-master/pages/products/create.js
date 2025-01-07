@@ -1,5 +1,5 @@
 import Layout from "@/components/Layout";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/router";
 
@@ -7,17 +7,24 @@ export default function CreateProduct() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [categoryId, setCategoryId] = useState("");
   const [images, setImages] = useState([]);
+  const [categories, setCategories] = useState([]);
   const router = useRouter();
-  const categories = [
-    { id: 1, name: "Electronics" },
-    { id: 2, name: "Books" },
-    { id: 3, name: "Clothing" },
-    { id: 4, name: "Home & Garden" },
-    { id: 5, name: "Beauty & Personal Care" },
-    { id: 6, name: "Sports & Outdoors" },
-  ];
+
+  // Fetch categories from the API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get("/api/categories"); // Endpoint để lấy danh sách danh mục
+        setCategories(response.data);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,9 +33,11 @@ export default function CreateProduct() {
         title,
         description,
         price,
-        categoryId,
+        loyalty_points: loyaltyPoints,
+        category_id: categoryId,
         images: images.length > 0 ? images : null,
       };
+
       const response = await axios.post("/api/products", data); // Gọi API thêm sản phẩm
       if (response.status === 201) {
         alert("Sản phẩm đã được thêm!");
@@ -73,28 +82,31 @@ export default function CreateProduct() {
           />
         </div>
         <div className="mb-4">
-            <label className="block mb-2">Danh mục</label>
-            <select
-                className="input"
-                value={categoryId}
-                onChange={(e) => {
-                // Tìm ID của danh mục dựa trên tên đã chọn
-                const selectedCategory = categories.find(
-                    (category) => category.name === e.target.value
-                );
-                setCategoryId(selectedCategory?.id || ""); // Lưu lại ID vào state
-                }}
-                required
-            >
-                <option value="" disabled>
-                -- Chọn danh mục --
-                </option>
-                {categories.map((category) => (
-                <option key={category.id} value={category.name}>
-                    {category.name}
-                </option>
-                ))}
-            </select>
+          <label className="block mb-2">Điểm tích lũy</label>
+          <input
+            type="number"
+            className="input"
+            value={loyaltyPoints}
+            onChange={(e) => setLoyaltyPoints(e.target.value)}
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-2">Danh mục</label>
+          <select
+            className="input"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            required
+          >
+            <option value="" disabled>
+              -- Chọn danh mục --
+            </option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="mb-4">
           <label className="block mb-2">Hình ảnh (URL, cách nhau bởi dấu phẩy)</label>

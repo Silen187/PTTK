@@ -13,15 +13,23 @@ export default function EditProduct() {
   const [price, setPrice] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [images, setImages] = useState([]);
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0); // Thêm điểm tích lũy
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const categories = [
-    { id: 1, name: "Electronics" },
-    { id: 2, name: "Books" },
-    { id: 3, name: "Clothing" },
-    { id: 4, name: "Home & Garden" },
-    { id: 5, name: "Beauty & Personal Care" },
-    { id: 6, name: "Sports & Outdoors" },
-  ];
+  // Lấy danh mục sản phẩm
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get("/api/categories");
+        setCategories(response.data);
+      } catch (error) {
+        console.error("Lỗi khi lấy danh mục:", error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   // Lấy thông tin sản phẩm hiện tại
   useEffect(() => {
@@ -33,13 +41,16 @@ export default function EditProduct() {
         const data = response.data;
 
         setProduct(data);
-        setTitle(data.title);
+        setTitle(data.title || "");
         setDescription(data.description || "");
-        setPrice(data.price);
-        setCategoryId(data.categoryId || "");
+        setPrice(data.price || "");
+        setCategoryId(data.category_id || "");
         setImages(data.images || []);
+        setLoyaltyPoints(data.loyalty_points || 0); // Lấy điểm tích lũy
+        setLoading(false);
       } catch (error) {
         console.error("Lỗi khi lấy thông tin sản phẩm:", error);
+        setLoading(false);
       }
     };
 
@@ -54,9 +65,11 @@ export default function EditProduct() {
         title,
         description,
         price,
-        categoryId,
+        category_id: categoryId, // Đảm bảo đúng tên trường trong cơ sở dữ liệu
         images,
+        loyalty_points: loyaltyPoints, // Thêm điểm tích lũy vào dữ liệu cập nhật
       };
+
       const response = await axios.put(`/api/products?id=${id}`, updatedData);
       if (response.status === 200) {
         alert("Cập nhật sản phẩm thành công!");
@@ -68,8 +81,12 @@ export default function EditProduct() {
     }
   };
 
-  if (!product) {
+  if (loading) {
     return <Layout>Đang tải thông tin sản phẩm...</Layout>;
+  }
+
+  if (!product) {
+    return <Layout>Không tìm thấy sản phẩm</Layout>;
   }
 
   return (
@@ -129,6 +146,16 @@ export default function EditProduct() {
             className="input"
             value={images.join(",")}
             onChange={(e) => setImages(e.target.value.split(","))}
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-2">Điểm Tích Lũy</label>
+          <input
+            type="number"
+            className="input"
+            value={loyaltyPoints}
+            onChange={(e) => setLoyaltyPoints(Number(e.target.value))}
+            required
           />
         </div>
         <button type="submit" className="btn-primary">

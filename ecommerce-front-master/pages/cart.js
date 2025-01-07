@@ -10,74 +10,100 @@ import { useSession } from "next-auth/react";
 
 const ColumnsWrapper = styled.div`
   display: grid;
-  grid-template-columns: 1fr;
-  @media screen and (min-width: 768px) {
-    grid-template-columns: 3fr 4fr; /* 2 cột khi trên màn hình lớn */
-  }
-  gap: 40px;
-  margin-top: 40px;
-`;
-
-const TotalPriceWrapper = styled.div`
-  text-align: center; /* Căn giữa văn bản */
-  font-size: 1.2rem; /* Tăng kích thước chữ nếu cần */
-  margin-top: 10px; /* Thêm khoảng cách trên nếu cần */
-  color: #333; /* Màu chữ */
-`;
-
-const ButtonWrapper = styled.div`
-  text-align: center; /* Căn giữa nội dung bên trong */
-  margin-top: 20px; /* Khoảng cách phía trên */
+  grid-template-columns: 700px 400px;
+  gap: 20px;
+  margin: 40px auto;
+  max-width: 1200px;
 `;
 
 const Box = styled.div`
   background-color: #fff;
   border-radius: 10px;
   padding: 30px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 `;
 
 const ProductInfoCell = styled.td`
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 10px 0;
-  background-color: #f9f9f9;
   text-align: left;
-  width: 250px; /* Đặt chiều rộng cố định */
+  width: 400px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
 
 const ProductImageBox = styled.div`
-  width: 70px;
-  height: 100px;
-  padding: 2px;
+  width: 80px;
+  height: 80px;
+  padding: 5px;
   border: 1px solid rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 10px;
   img {
-    max-width: 60px;
-    max-height: 60px;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
-  @media screen and (min-width: 768px) {
+`;
+
+const QuantityCell = styled.td`
+  text-align: center;
+  width: 100px;
+  button {
+    margin: 0 5px;
+    padding: 5px 10px;
+    font-size: 14px;
+  }
+  span {
+    display: inline-block;
+    width: 30px;
+    text-align: center;
+  }
+`;
+
+const PriceCell = styled.td`
+  text-align: right;
+  font-weight: 600;
+  font-size: 16px;
+  width: 100px;
+  color: #333;
+`;
+
+const TotalPriceWrapper = styled.div`
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 20px;
+  color: #333;
+`;
+
+const ButtonWrapper = styled.div`
+  text-align: center;
+  margin-top: 30px;
+  button {
+    width: 300px;
+    height: 50px;
     padding: 10px;
-    width: 100px;
-    height: 100px;
-    img {
-      max-width: 80px;
-      max-height: 80px;
-    }
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 5px;
   }
 `;
 
 export default function CartPage() {
-  const { data: session } = useSession(); // Lấy thông tin đăng nhập từ session
+  const { data: session } = useSession();
   const { cartProducts, setCartProducts, addProduct, removeProduct } =
     useContext(CartContext);
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedVoucherId, setSelectedVoucherId] = useState(null);
+  const [availableVouchers, setAvailableVouchers] = useState([]);
 
-  // Lấy giỏ hàng từ backend khi người dùng đăng nhập
   useEffect(() => {
     async function fetchCart() {
       if (session) {
@@ -90,7 +116,16 @@ export default function CartPage() {
     fetchCart();
   }, [session]);
 
-  // Tạo danh sách sản phẩm dựa trên `cartProducts` và `products`
+  useEffect(() => {
+    async function fetchVouchers() {
+      if (session) {
+        const response = await axios.get(`/api/vouchers?customerId=${session.user.customer.id}`);
+        setAvailableVouchers(response.data);
+      }
+    }
+    fetchVouchers();
+  }, [session]);
+
   const productList = useMemo(() => {
     return cartProducts
       .map((cartItem) => {
@@ -102,10 +137,9 @@ export default function CartPage() {
             }
           : null;
       })
-      .filter(Boolean); // Loại bỏ giá trị null
+      .filter(Boolean);
   }, [cartProducts, products]);
 
-  // Tính tổng giá trị giỏ hàng
   const totalPrice = useMemo(() => {
     return productList.reduce(
       (total, product) =>
@@ -114,18 +148,36 @@ export default function CartPage() {
     );
   }, [productList]);
 
+  const selectedDiscount = useMemo(() => {
+    if (!selectedVoucherId || !availableVouchers) {
+      return 0;
+    }
+    const selectedVoucher = availableVouchers.find(
+      (entry) => entry.voucher.id === selectedVoucherId
+    );
+    return selectedVoucher ? selectedVoucher.voucher.discount_value : 0;
+  }, [selectedVoucherId, availableVouchers]);
+
+  const finalPrice = totalPrice - selectedDiscount;
+
   const handlePlaceOrder = async () => {
     try {
       const response = await axios.post("/api/orders/add", {
-        userId: session.user.id,
         customerId: session.user.customer.id,
         cartProducts,
-        totalPrice,
+        totalPrice: finalPrice,
+        selectedVoucherId,
       });
-
       if (response.data.success) {
         alert("Đặt hàng thành công! Mã đơn hàng của bạn là: " + response.data.orderId);
-        setCartProducts([]); // Làm trống giỏ hàng sau khi đặt hàng
+
+        // Reset giỏ hàng sau khi đặt hàng
+        setCartProducts([]);
+        setSelectedVoucherId(null);
+
+        // Làm mới danh sách mã giảm giá
+        const updatedVouchers = await axios.get(`/api/vouchers?customerId=${session.user.customer.id}`);
+        setAvailableVouchers(updatedVouchers.data);
       }
     } catch (error) {
       console.error("Lỗi khi đặt hàng:", error);
@@ -138,16 +190,15 @@ export default function CartPage() {
       <Header />
       <Center>
         <ColumnsWrapper>
-          {/* Cột hiển thị giỏ hàng */}
           <Box>
             <h2>Giỏ hàng</h2>
             {productList.length > 0 ? (
               <Table>
                 <thead>
                   <tr>
-                    <th>Sản phẩm</th>
-                    <th>Số lượng</th>
-                    <th>Giá</th>
+                    <th style={{ width: "60%" }}>Sản phẩm</th>
+                    <th style={{ width: "20%", textAlign: "center" }}>Số lượng</th>
+                    <th style={{ width: "20%", textAlign: "right" }}>Giá</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -159,12 +210,16 @@ export default function CartPage() {
                         </ProductImageBox>
                         {product.title}
                       </ProductInfoCell>
-                      <td>
+                      <QuantityCell>
                         <Button onClick={() => removeProduct(product.id)}>-</Button>
                         <span>{product.quantity}</span>
                         <Button onClick={() => addProduct(product.id)}>+</Button>
-                      </td>
-                      <td>${(parseFloat(product.price) * product.quantity).toFixed(2)}</td>
+                      </QuantityCell>
+                      <PriceCell>
+                        ${(
+                          parseFloat(product.price) * product.quantity
+                        ).toFixed(2)}
+                      </PriceCell>
                     </tr>
                   ))}
                 </tbody>
@@ -174,13 +229,8 @@ export default function CartPage() {
             )}
           </Box>
 
-          {/* Cột hiển thị thông tin đơn hàng */}
           <Box>
-            
-            <TotalPriceWrapper>
-              <h2>Thông tin đơn hàng</h2>
-            </TotalPriceWrapper>
-            {/* Hiển thị thông tin người dùng */}
+            <h2>Thông tin đơn hàng</h2>
             {session && session.user ? (
               <>
                 <ul>
@@ -193,30 +243,49 @@ export default function CartPage() {
                   <li>
                     <strong>Địa chỉ:</strong> {session.user.customer.address || "Không có"}
                   </li>
-                  <li>
-                    <strong>Thành phố:</strong> {session.user.customer.city || "Không có"}
-                  </li>
-                  <li>
-                    <strong>Quốc gia:</strong> {session.user.customer.country || "Không có"}
-                  </li>
-                  <li>
-                    <strong>Vai trò:</strong>{" "}
-                    {session.user.role === "customer"
-                      ? "Khách hàng"
-                      : "Quản trị viên"}
-                  </li>
                 </ul>
+
+                <div>
+                  <h3>Chọn mã giảm giá:</h3>
+                  {availableVouchers.length > 0 ? (
+                    <ul>
+                      {availableVouchers.map((entry) => (
+                        <li key={entry.voucher.id}>
+                          <label>
+                            <input
+                              type="radio"
+                              name="voucher"
+                              value={entry.voucher.id}
+                              checked={selectedVoucherId === entry.voucher.id}
+                              onChange={() => setSelectedVoucherId(entry.voucher.id)}
+                            />
+                            <strong>Mã:</strong> {entry.voucher.code} <br />
+                            <strong>Giảm:</strong> {entry.voucher.discount_value}$ <br />
+                            <strong>Hạn:</strong> {new Date(entry.voucher.expires_at).toLocaleDateString()} <br />
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>Không có mã giảm giá nào.</p>
+                  )}
+                </div>
+
                 <TotalPriceWrapper>
                   <strong>Tổng tiền:</strong> ${totalPrice.toFixed(2)}
+                </TotalPriceWrapper>
+                <TotalPriceWrapper>
+                  <strong>Giảm giá:</strong> -${selectedDiscount}
+                </TotalPriceWrapper>
+                <TotalPriceWrapper>
+                  <strong>Thành tiền:</strong> ${finalPrice.toFixed(2)}
                 </TotalPriceWrapper>
               </>
             ) : (
               <p>Vui lòng đăng nhập để xem thông tin người dùng.</p>
             )}
-
             <ButtonWrapper>
               <Button
-                style={{ width: "60%" }}
                 disabled={productList.length === 0}
                 onClick={handlePlaceOrder}
               >
@@ -229,145 +298,3 @@ export default function CartPage() {
     </>
   );
 }
-
-
-// import Header from "@/components/Header";
-// import styled from "styled-components";
-// import Center from "@/components/Center";
-// import Button from "@/components/Button";
-// import { useContext, useEffect, useState } from "react";
-// import { useMemo } from "react";
-// import { CartContext } from "@/components/CartContext";
-// import axios from "axios";
-// import Table from "@/components/Table";
-// import { useSession } from "next-auth/react";
-
-// const ColumnsWrapper = styled.div`
-//   display: grid;
-//   grid-template-columns: 1fr;
-//   @media screen and (min-width: 768px) {
-//     grid-template-columns: 1.2fr 0.8fr;
-//   }
-//   gap: 40px;
-//   margin-top: 40px;
-// `;
-
-// const Box = styled.div`
-//   background-color: #fff;
-//   border-radius: 10px;
-//   padding: 30px;
-// `;
-
-// // const ProductInfoCell = styled.td`
-// //   padding: 10px 0;
-  
-// // `;
-
-// const ProductInfoCell = styled.td`
-//   padding: 10px 0;
-//   background-color: #f9f9f9; /* Màu nền */
-//   text-align: left; /* Căn nội dung bên trái */
-//   width: 200px; /* Đặt chiều rộng cố định */
-//   word-wrap: break-word; /* Nếu text dài, sẽ xuống dòng */
-//   overflow: hidden; /* Ẩn phần nội dung bị tràn */
-//   text-overflow: ellipsis; /* Hiển thị "..." nếu nội dung quá dài */
-//   white-space: nowrap; /* Ngăn nội dung bị xuống dòng */
-// `;
-
-// const ProductImageBox = styled.div`
-//   width: 70px;
-//   height: 100px;
-//   padding: 2px;
-//   border: 1px solid rgba(0, 0, 0, 0.1);
-//   display: flex;
-//   align-items: center;
-//   justify-content: center;
-//   border-radius: 10px;
-//   img {
-//     max-width: 60px;
-//     max-height: 60px;
-//   }
-//   @media screen and (min-width: 768px) {
-//     padding: 10px;
-//     width: 100px;
-//     height: 100px;
-//     img {
-//       max-width: 80px;
-//       max-height: 80px;
-//     }
-//   }
-// `;
-
-// export default function CartPage() {
-//   const { data: session } = useSession();
-//   const { cartProducts, setCartProducts, addProduct, removeProduct } = useContext(CartContext);
-//   const [products, setProducts] = useState([]);
-//   const [isLoading, setIsLoading] = useState(true);
-
-//   useEffect(() => {
-//     async function fetchCart() {
-//       if (session) {
-//         const response = await axios.get(`/api/cart?userId=${session.user.id}`);
-//         setCartProducts(response.data);
-//         setProducts(response.data.map((item) => item.product));
-//         setIsLoading(false);
-//       }
-//     }
-//     fetchCart();
-//   }, [session]);
-
-//   const productList = useMemo(() => {
-//     return cartProducts
-//       .map((cartItem) => {
-//         const product = products.find((p) => p.id === cartItem.productId);
-//         return product ? { ...product, quantity: cartItem.quantity } : null;
-//       })
-//       .filter(Boolean); // Loại bỏ giá trị null
-//   }, [cartProducts, products]);
-
-//   return (
-//     <>
-//       <Header />
-//       <Center>
-//         <ColumnsWrapper>
-//           <Box>
-//             <h2>Giỏ hàng</h2>
-//             {productList.length > 0 ? (
-//               <Table>
-//                 <thead>
-//                   <tr>
-//                     <th>Sản phẩm</th>
-//                     <th>Số lượng</th>
-//                     <th>Giá</th>
-//                   </tr>
-//                 </thead>
-//                 <tbody>
-//                   {productList.map((product) => (
-//                     product && (
-//                       <tr key={product.id}>
-//                         <ProductInfoCell>
-//                           <ProductImageBox>
-//                             <img src={product.images?.[0]} alt="" />
-//                           </ProductImageBox>
-//                           {product.title}
-//                         </ProductInfoCell>
-//                         <td>
-//                           <Button onClick={() => removeProduct(product.id)}>-</Button>
-//                           <span>{product.quantity}</span>
-//                           <Button onClick={() => addProduct(product.id)}>+</Button>
-//                         </td>
-//                         <td>${(parseFloat(product.price) * product.quantity).toFixed(2)}</td>
-//                       </tr>
-//                     )
-//                   ))}
-//                 </tbody>
-//               </Table>
-//             ) : (
-//               <p>Giỏ hàng trống.</p>
-//             )}
-//           </Box>
-//         </ColumnsWrapper>
-//       </Center>
-//     </>
-//   );
-// }

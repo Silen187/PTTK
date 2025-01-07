@@ -1,18 +1,19 @@
+// /pages/orders/create.js
 import Layout from "@/components/Layout";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
+import Select from "react-select";
 
 export default function CreateOrder() {
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   const [customerId, setCustomerId] = useState("");
   const [items, setItems] = useState([]);
-  const [totalOrderPrice, setTotalOrderPrice] = useState(0);
+  const [totalPrice, setTotalPrice] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
-    // Fetch customers and products
     const fetchData = async () => {
       try {
         const [customerRes, productRes] = await Promise.all([
@@ -29,20 +30,17 @@ export default function CreateOrder() {
     fetchData();
   }, []);
 
-  // Thêm sản phẩm vào danh sách
   const handleAddItem = () => {
     setItems([...items, { productId: "", quantity: 1, price: 0 }]);
   };
 
-  // Cập nhật thông tin sản phẩm
   const handleItemChange = (index, field, value) => {
     const updatedItems = [...items];
     updatedItems[index][field] = value;
 
-    // Tự động cập nhật giá khi chọn sản phẩm
     if (field === "productId") {
       const selectedProduct = products.find(
-        (p) => p.id === parseInt(value)
+        (product) => product.id === parseInt(value)
       );
       if (selectedProduct) {
         updatedItems[index].price = selectedProduct.price;
@@ -50,23 +48,21 @@ export default function CreateOrder() {
     }
 
     setItems(updatedItems);
-    calculateTotalOrderPrice(updatedItems);
+    calculateTotalPrice(updatedItems);
   };
 
-  // Xóa sản phẩm khỏi danh sách
   const handleRemoveItem = (index) => {
     const updatedItems = items.filter((_, i) => i !== index);
     setItems(updatedItems);
-    calculateTotalOrderPrice(updatedItems);
+    calculateTotalPrice(updatedItems);
   };
 
-  // Tính tổng tiền đơn hàng
-  const calculateTotalOrderPrice = (updatedItems) => {
+  const calculateTotalPrice = (updatedItems) => {
     const total = updatedItems.reduce(
       (sum, item) => sum + item.quantity * item.price,
       0
     );
-    setTotalOrderPrice(total);
+    setTotalPrice(total);
   };
 
   const handleSubmit = async (e) => {
@@ -90,44 +86,30 @@ export default function CreateOrder() {
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label className="block mb-2">Khách Hàng</label>
-          <select
-            className="input"
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            required
-          >
-            <option value="" disabled>
-              -- Chọn Khách Hàng --
-            </option>
-            {customers.map((customer) => (
-              <option key={customer.id} value={customer.id}>
-                {customer.name}
-              </option>
-            ))}
-          </select>
+          <Select
+            options={customers.map((customer) => ({
+              value: customer.id,
+              label: customer.name,
+            }))}
+            onChange={(selectedOption) => setCustomerId(selectedOption.value)}
+            placeholder="Tìm kiếm khách hàng..."
+          />
         </div>
         <h2 className="text-xl mb-4">Sản Phẩm</h2>
         {items.map((item, index) => (
           <div key={index} className="mb-4 border p-4 rounded">
             <div className="mb-2">
               <label className="block mb-2">Sản Phẩm</label>
-              <select
-                className="input"
-                value={item.productId}
-                onChange={(e) =>
-                  handleItemChange(index, "productId", e.target.value)
+              <Select
+                options={products.map((product) => ({
+                  value: product.id,
+                  label: `${product.title} - ${product.price}$`,
+                }))}
+                onChange={(selectedOption) =>
+                  handleItemChange(index, "productId", selectedOption.value)
                 }
-                required
-              >
-                <option value="" disabled>
-                  -- Chọn Sản Phẩm --
-                </option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.title} - {product.price}$
-                  </option>
-                ))}
-              </select>
+                placeholder="Tìm kiếm sản phẩm..."
+              />
             </div>
             <div className="mb-2">
               <label className="block mb-2">Số Lượng</label>
@@ -142,14 +124,9 @@ export default function CreateOrder() {
                 required
               />
             </div>
-            <div className="mb-2">
-              <p className="text-sm text-gray-600">
-                Tổng Tiền:{" "}
-                <span className="font-bold">
-                  {(item.quantity * item.price || 0).toFixed(2)}$
-                </span>
-              </p>
-            </div>
+            <p className="text-gray-600 text-sm">
+              Tổng giá: {(item.quantity * item.price || 0).toFixed(2)}$
+            </p>
             <button
               type="button"
               className="btn-red"
@@ -159,17 +136,12 @@ export default function CreateOrder() {
             </button>
           </div>
         ))}
-        <button
-          type="button"
-          className="btn-default mb-4"
-          onClick={handleAddItem}
-        >
+        <button type="button" className="btn-default mb-4" onClick={handleAddItem}>
           Thêm Sản Phẩm
         </button>
         <div className="mb-4">
           <p className="text-lg">
-            Tổng Tiền Đơn Hàng:{" "}
-            <span className="font-bold">{totalOrderPrice?.toFixed(2)}$</span>
+            Tổng Tiền Đơn Hàng: <span className="font-bold">{totalPrice.toFixed(2)}$</span>
           </p>
         </div>
         <button type="submit" className="btn-primary">

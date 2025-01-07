@@ -1,47 +1,53 @@
-const { Order, OrderItem, Product, CartItem } = require("@/lib/sequelize");
+import { Order, OrderItem, CustomerVoucher, CartItem } from "@/lib/sequelize2";
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
-    const { userId, customerId, cartProducts, totalPrice } = req.body;
-
-    if (!customerId || !cartProducts || !totalPrice) {
-      return res.status(400).json({ error: "Thiếu thông tin cần thiết để tạo đơn hàng." });
-    }
+    const { customerId, cartProducts, totalPrice, selectedVoucherId } = req.body;
 
     try {
-      // Tạo đơn hàng
-      const newOrder = await Order.create({
+      // 1. Tạo đơn hàng
+      const order = await Order.create({
         customer_id: customerId,
-        totalPrice,
+        total_price: totalPrice,
         status: "pending",
       });
+      
+      // 2. Thêm sản phẩm vào đơn hàng
+      const orderItems = cartProducts.map((product) => ({
+        order_id: order.id, // Gán ID của đơn hàng vừa tạo
+        product_id: product.productId,
+        quantity: product.quantity,
+        price: product.product.price,
+      }));
+      
+      // 3. Lưu các sản phẩm vào bảng OrderItem
+      await OrderItem.bulkCreate(orderItems);
 
-      // Thêm các sản phẩm vào chi tiết đơn hàng
-      const orderItems = await Promise.all(
-        cartProducts.map(async (item) => {
-          const product = await Product.findByPk(item.productId);
-          if (!product) {
-            throw new Error(`Sản phẩm với ID ${item.productId} không tồn tại.`);
-          }
-          return OrderItem.create({
-            order_id: newOrder.id,
-            product_id: item.productId,
-            quantity: item.quantity,
-            price: product.price,
-          });
-        })
-      );
+      // 3. Đánh dấu mã giảm giá đã được sử dụng (nếu có)
+      if (selectedVoucherId) {
+        await CustomerVoucher.update(
+          { status: "used", order_id: order.id },
+          { where: { voucher_id: selectedVoucherId, customer_id: customerId } }
+        );
+      }
 
-      // Xóa các sản phẩm trong giỏ hàng của người dùng
-      await CartItem.destroy({ where: { user_id: userId } });
+      // 4. Xóa các sản phẩm trong giỏ hàng
+      const productIds = cartProducts.map((product) => product.productId);
+      await CartItem.destroy({
+        where: {
+          customer_id: customerId,
+          product_id: productIds,
+        },
+      });
 
-      res.status(200).json({ success: true, orderId: newOrder.id });
+      // 5. Phản hồi thành công
+      return res.status(200).json({ success: true, orderId: order.id });
     } catch (error) {
       console.error("Error creating order:", error);
-      res.status(500).json({ error: "Không thể tạo đơn hàng." });
+      return res.status(500).json({ success: false, message: "Failed to place order." });
     }
-  } else {
-    res.setHeader("Allow", ["POST"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
   }
+
+  res.setHeader("Allow", ["POST"]);
+  res.status(405).end(`Method ${req.method} not allowed.`);
 }

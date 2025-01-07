@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { sequelize, User } from "@/lib/sequelize";
+import { User, Customer } from "@/lib/sequelize2";
 
 export const authOptions = {
   secret: "18072003", // Để demo, không bảo mật cao
@@ -15,24 +15,29 @@ export const authOptions = {
         const { username, password } = credentials;
 
         // Tìm người dùng theo username
-        const user = await User.findOne({ where: { username } });
+        const user = await User.findOne({
+          where: { username, deleted: false }, // Chỉ lấy người dùng chưa bị xóa
+          include: [
+            {
+              model: Customer,
+              as: "customer",
+              attributes: ["id", "name", "email", "loyalty_points", "is_vip"],
+            },
+          ],
+        });
 
         if (!user || password !== user.password) {
           console.error("Tên đăng nhập hoặc mật khẩu không đúng");
           return null;
         }
 
-        // Kiểm tra vai trò
-        if (user.role !== "admin") {
-          console.error("Bạn không có quyền");
-          return null;
-        }
-
+        // Trả về thông tin người dùng nếu xác thực thành công
         return {
           id: user.id,
           name: user.username,
           email: user.email,
           role: user.role,
+          customer: user.customer,
         };
       },
     }),
@@ -44,6 +49,7 @@ export const authOptions = {
         token.name = user.name;
         token.email = user.email;
         token.role = user.role;
+        token.customer = user.customer; // Thêm thông tin customer
       }
       return token;
     },
@@ -54,6 +60,7 @@ export const authOptions = {
           name: token.name,
           email: token.email,
           role: token.role,
+          customer: token.customer, // Thêm thông tin customer vào session
         };
       }
       return session;
@@ -64,7 +71,7 @@ export const authOptions = {
     signOut: "/auth/signout",
   },
   session: {
-    strategy: "jwt",
+    strategy: "jwt", // Sử dụng JSON Web Tokens cho session
   },
 };
 

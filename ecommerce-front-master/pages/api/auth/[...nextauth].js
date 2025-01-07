@@ -1,6 +1,8 @@
+
+
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { User, Customer } from '@/lib/sequelize'; // Import models
+import { User, Customer, VipHistory, CustomerVoucher, Voucher } from '@/lib/sequelize2'; // Import models
 
 export default NextAuth({
   providers: [
@@ -25,7 +27,31 @@ export default NextAuth({
               {
                 model: Customer,
                 as: 'customer',
-                attributes: ['id', 'name', 'email', 'phone', 'address', 'city', 'country'],
+                attributes: [
+                  'id', 'name', 'email', 'phone', 'address', 'city', 'country',
+                  'is_vip', 'loyalty_points', 'deleted',
+                ],
+                include: [
+                  {
+                    model: VipHistory,
+                    as: 'vip_history',
+                    attributes: ['id', 'promotion_reason', 'created_at'],
+                  },
+                  {
+                    model: CustomerVoucher,
+                    as: 'customer_vouchers', // Alias phải khớp với định nghĩa
+                    attributes: ['id', 'status', 'created_at'],
+                    required: false, // Đảm bảo kết quả trả về ngay cả khi không có voucher nào thỏa mãn
+                    where: { status: 'unused' }, // Chỉ lấy voucher chưa sử dụng
+                    include: [
+                      {
+                        model: Voucher,
+                        as: 'voucher', // Alias phải khớp với định nghĩa
+                        attributes: ['id', 'code', 'discount_value', 'expires_at'],
+                      },
+                    ],
+                  },
+                ],
               },
             ],
           });
@@ -39,10 +65,13 @@ export default NextAuth({
             throw new Error("Sai mật khẩu.");
           }
 
-          // Trả về thông tin đầy đủ
+          if (user.deleted) {
+            throw new Error("Tài khoản của bạn đã bị vô hiệu.");
+          }
+          // Trả về thông tin người dùng nếu xác thực thành công
           return {
             id: user.id,
-            name: user.username,
+            username: user.username,
             email: user.email,
             role: user.role,
             customer: user.customer,
@@ -58,7 +87,6 @@ export default NextAuth({
   ],
   callbacks: {
     async session({ session, token }) {
-      // Gắn thông tin người dùng vào session
       session.user = token.user;
       return session;
     },
@@ -69,15 +97,16 @@ export default NextAuth({
       return token;
     },
   },
-  secret: '18072003',
+  secret: '18072003', // Khóa bảo mật cho JWT
   session: {
-    strategy: 'jwt',
-    maxAge: 60 * 60 * 24 * 30, // 30 ngày
+    strategy: 'jwt', // Sử dụng JWT cho phiên đăng nhập
+    maxAge: 60*60, // 30 ngày
   },
   jwt: {
-    secret: '18072003',
+    secret: '18072003', // Khóa bảo mật cho JWT
   },
   pages: {
     signIn: '/account', // Trang đăng nhập
   },
 });
+

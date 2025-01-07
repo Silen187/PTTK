@@ -1,7 +1,9 @@
+// /pages/orders/edit/[id].js
 import Layout from "@/components/Layout";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
+import Select from "react-select";
 
 export default function EditOrder() {
   const router = useRouter();
@@ -32,16 +34,15 @@ export default function EditOrder() {
         setCustomers(customerRes.data);
         setProducts(productRes.data);
 
-        // Populate form fields
-        setCustomerId(fetchedOrder.customer_id);
+        setCustomerId(fetchedOrder.customer_id || "");
         setItems(
-          fetchedOrder.items.map((item) => ({
+          fetchedOrder.items?.map((item) => ({
             productId: item.product_id,
             quantity: item.quantity,
             price: item.price,
-          }))
+          })) || []
         );
-        setStatus(fetchedOrder.status);
+        setStatus(fetchedOrder.status || "pending");
 
         setLoading(false);
       } catch (error) {
@@ -54,24 +55,25 @@ export default function EditOrder() {
   }, [id]);
 
   const handleItemChange = (index, field, value) => {
-    const updatedItems = [...items];
-    updatedItems[index][field] = value;
+    setItems((prevItems) => {
+      const updatedItems = [...prevItems];
+      updatedItems[index][field] = value;
 
-    if (field === "productId") {
-      const selectedProduct = products.find(
-        (product) => product.id === parseInt(value)
-      );
-      if (selectedProduct) {
-        updatedItems[index].price = selectedProduct.price;
+      if (field === "productId") {
+        const selectedProduct = products.find(
+          (product) => product.id === parseInt(value)
+        );
+        if (selectedProduct) {
+          updatedItems[index].price = selectedProduct.price;
+        }
       }
-    }
 
-    setItems(updatedItems);
+      return updatedItems;
+    });
   };
 
   const handleRemoveItem = (index) => {
-    const updatedItems = items.filter((_, i) => i !== index);
-    setItems(updatedItems);
+    setItems((prevItems) => prevItems.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
@@ -84,8 +86,8 @@ export default function EditOrder() {
         alert("Cập nhật đơn hàng thành công!");
         router.push("/orders");
       }
-    } catch (error) {
-      console.error("Error updating order:", error);
+    } catch (err) {
+      console.error("Error updating order:", err);
       alert("Không thể cập nhật đơn hàng!");
     }
   };
@@ -104,21 +106,12 @@ export default function EditOrder() {
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label className="block mb-2">Khách Hàng</label>
-          <select
+          <input
+            type="text"
             className="input"
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            required
-          >
-            <option value="" disabled>
-              -- Chọn Khách Hàng --
-            </option>
-            {customers.map((customer) => (
-              <option key={customer.id} value={customer.id}>
-                {customer.name}
-              </option>
-            ))}
-          </select>
+            value={customers.find((customer) => customer.id === customerId)?.name || ""}
+            disabled
+          />
         </div>
         <div className="mb-4">
           <label className="block mb-2">Trạng Thái</label>
@@ -140,23 +133,22 @@ export default function EditOrder() {
           <div key={index} className="mb-4 border p-4 rounded">
             <div className="mb-2">
               <label className="block mb-2">Sản Phẩm</label>
-              <select
-                className="input"
-                value={item.productId}
-                onChange={(e) =>
-                  handleItemChange(index, "productId", e.target.value)
+              <Select
+                options={products.map((product) => ({
+                  value: product.id,
+                  label: `${product.title} - ${product.price}$`,
+                }))}
+                value={products
+                  .map((product) => ({
+                    value: product.id,
+                    label: `${product.title} - ${product.price}$`,
+                  }))
+                  .find((option) => option.value === item.productId) || null}
+                onChange={(selectedOption) =>
+                  handleItemChange(index, "productId", selectedOption.value)
                 }
-                required
-              >
-                <option value="" disabled>
-                  -- Chọn Sản Phẩm --
-                </option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.title} - {product.price}$
-                  </option>
-                ))}
-              </select>
+                placeholder="Tìm kiếm sản phẩm..."
+              />
             </div>
             <div className="mb-2">
               <label className="block mb-2">Số Lượng</label>

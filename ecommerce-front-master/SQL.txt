@@ -1,0 +1,135 @@
+-- Tạo cơ sở dữ liệu
+CREATE DATABASE IF NOT EXISTS ecommerce_optimized;
+USE ecommerce_optimized;
+
+-- Bảng customers (Khách hàng)
+CREATE TABLE customers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE,
+    phone VARCHAR(20),
+    address TEXT,
+    city VARCHAR(100),
+    country VARCHAR(100),
+    is_vip TINYINT(1) DEFAULT 0, -- Đánh dấu khách hàng VIP
+    loyalty_points INT DEFAULT 0, -- Điểm tích lũy
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT(1) DEFAULT 0 -- Xóa mềm
+);
+
+-- Bảng users (Tài khoản người dùng)
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255) NOT NULL UNIQUE, -- Tên đăng nhập
+    password VARCHAR(255) NOT NULL, -- Mật khẩu mã hóa
+    email VARCHAR(255) NOT NULL UNIQUE, -- Email đăng nhập
+    role ENUM('admin', 'customer') DEFAULT 'customer', -- Vai trò
+    customer_id INT NOT NULL, -- Liên kết tới bảng customers
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT(1) DEFAULT 0, -- Xóa mềm
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+);
+
+-- Bảng categories (Danh mục sản phẩm)
+CREATE TABLE categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL, -- Tên danh mục
+    description TEXT, -- Mô tả
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Bảng products (Sản phẩm)
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL, -- Tên sản phẩm
+    description TEXT, -- Mô tả sản phẩm
+    price DECIMAL(10,2) NOT NULL, -- Giá sản phẩm
+    images JSON, -- Hình ảnh sản phẩm
+    category_id INT, -- Liên kết tới danh mục
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT(1) DEFAULT 0, -- Xóa mềm
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+
+-- Bảng product_inventory (Tồn kho sản phẩm)
+CREATE TABLE product_inventory (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    change_type ENUM('added', 'sold', 'returned') NOT NULL,
+    quantity INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+-- Bảng orders (Đơn hàng)
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL, -- Khách hàng thực hiện đơn hàng
+    total_price DECIMAL(10,2) NOT NULL, -- Tổng giá trị đơn hàng
+    status ENUM('pending', 'paid', 'shipped', 'completed', 'cancelled') DEFAULT 'pending', -- Trạng thái đơn hàng
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT(1) DEFAULT 0, -- Xóa mềm
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- Bảng order_items (Chi tiết đơn hàng)
+CREATE TABLE order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL, -- Liên kết tới đơn hàng
+    product_id INT NOT NULL, -- Liên kết tới sản phẩm
+    quantity INT NOT NULL, -- Số lượng
+    price DECIMAL(10,2) NOT NULL, -- Giá bán của sản phẩm trong đơn hàng
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+-- Bảng vouchers (Voucher)
+CREATE TABLE vouchers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE, -- Mã voucher
+    discount_value DECIMAL(10,2) NOT NULL, -- Giá trị giảm
+    required_points INT NOT NULL, -- Điểm tích lũy yêu cầu để đổi
+    expires_at TIMESTAMP NOT NULL, -- Thời gian hết hạn
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Bảng customer_vouchers (Liên kết khách hàng và voucher)
+CREATE TABLE customer_vouchers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL, -- Liên kết tới khách hàng
+    voucher_id INT NOT NULL, -- Liên kết tới voucher
+    status ENUM('unused', 'used', 'expired') DEFAULT 'unused', -- Trạng thái
+    order_id INT DEFAULT NULL, -- Liên kết tới đơn hàng (nếu đã sử dụng)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id),
+    FOREIGN KEY (voucher_id) REFERENCES vouchers(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- Bảng cart_items (Sản phẩm trong giỏ hàng)
+CREATE TABLE cart_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL, -- Liên kết tới khách hàng
+    product_id INT NOT NULL, -- Liên kết tới sản phẩm
+    quantity INT NOT NULL DEFAULT 1, -- Số lượng sản phẩm
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+-- Bảng vip_history (Lịch sử VIP)
+CREATE TABLE vip_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL, -- Liên kết tới khách hàng
+    promotion_reason ENUM('Top5_Monthly', 'Top3_Category', 'Spending_Over_Threshold') NOT NULL, -- Lý do lên VIP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);

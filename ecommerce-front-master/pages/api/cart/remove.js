@@ -1,12 +1,12 @@
-import { CartItem } from "@/lib/sequelize";
+import { CartItem } from "@/lib/sequelize2";
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
-    const { productId, userId } = req.body;
+    const { productId, customer_id } = req.body;
 
     try {
       const cartItem = await CartItem.findOne({
-        where: { product_id: productId, user_id: userId },
+        where: { product_id: productId, customer_id: customer_id },
       });
 
       if (cartItem) {

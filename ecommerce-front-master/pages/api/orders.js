@@ -1,31 +1,46 @@
-const { Order, OrderItem, Product } = require("@/lib/sequelize");
+const { Order, OrderItem, Product, CustomerVoucher, Voucher } = require("@/lib/sequelize2");
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
     const { customerId } = req.query;
+
     if (!customerId) {
-      return res.status(400).json({ error: "User ID is required" });
+      return res.status(400).json({ error: "Customer ID is required" });
     }
+
     try {
       const orders = await Order.findAll({
         where: { customer_id: customerId },
         include: [
           {
             model: OrderItem,
-            as: "items", // Sử dụng alias đã định nghĩa
+            as: "items", // Alias đã định nghĩa
             include: [
               {
                 model: Product, // Bao gồm thông tin sản phẩm
-                attributes: ["id", "title", "price"],
+                attributes: ["id", "title", "price", "images"],
               },
             ],
+          },
+          {
+            model: CustomerVoucher,
+            as: "customer_vouchers", // Bao gồm thông tin mã giảm giá
+            include: [
+              {
+                model: Voucher, // Bao gồm chi tiết của mã giảm giá
+                as: "voucher",
+                attributes: ["id", "code", "discount_value", "expires_at"],
+              },
+            ],
+            attributes: ["id", "status"], // Các trường cần thiết từ CustomerVoucher
           },
         ],
         order: [["created_at", "DESC"]], // Sắp xếp theo ngày tạo giảm dần
       });
+
       const formattedOrders = orders.map((order) => ({
         id: order.id,
-        totalPrice: order.totalPrice,
+        totalPrice: order.total_price,
         status: order.status,
         createdAt: order.created_at,
         items: order.items.map((item) => ({
@@ -39,6 +54,18 @@ export default async function handler(req, res) {
             images: item.Product.images,
           },
         })),
+        vouchers: order.customer_vouchers.map((cv) => ({
+          id: cv.id,
+          status: cv.status,
+          voucher: cv.voucher
+            ? {
+                id: cv.voucher.id,
+                code: cv.voucher.code,
+                discountValue: cv.voucher.discount_value,
+                expiresAt: cv.voucher.expires_at,
+              }
+            : null,
+        })), // Xử lý tất cả mã giảm giá được liên kết với đơn hàng
       }));
 
       res.status(200).json(formattedOrders);

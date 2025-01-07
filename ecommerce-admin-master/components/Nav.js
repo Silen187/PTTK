@@ -33,6 +33,70 @@ export default function Nav({show}) {
           </svg>
           Quản lý sản phẩm
         </Link>
+        
+        <Link
+          href={'/inventorys'}
+          className={pathname.includes('/inventorys') ? activeLink : inactiveLink}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className={pathname.includes('/inventorys') ? activeIcon : inactiveIcon}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 3h18v18H3V3zm3 3h12v12H6V6zm3 3h6v6H9V9z"
+            />
+          </svg>
+          Quản lý kho
+        </Link>
+
+        <Link
+          href={'/vouchers'}
+          className={pathname.includes('/vouchers') ? activeLink : inactiveLink}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className={pathname.includes('/vouchers') ? activeIcon : inactiveIcon}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 8h16M4 16h16m-6-8h6m-6 8h6"
+            />
+          </svg>
+          Quản lý Voucher
+        </Link>
+
+        <Link
+          href={'/vip-customers'}
+          className={pathname.includes('/vip-customers') ? activeLink : inactiveLink}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className={pathname.includes('/vip-customers') ? activeIcon : inactiveIcon}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 3c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9zm0 0v9m0 0l3.09 3.09m-3.09-3.09l-3.09 3.09"
+            />
+          </svg>
+          Quản lý VIP
+        </Link>
+
         <Link
           href={'/customers'}
           className={pathname.includes('/customers') ? activeLink : inactiveLink}

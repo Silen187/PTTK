@@ -33,7 +33,7 @@
 import Header from "@/components/Header";
 import styled from "styled-components";
 import Center from "@/components/Center";
-import { Product } from "@/lib/sequelize";
+import { Product } from "@/lib/sequelize2";
 import ProductsGrid from "@/components/ProductsGrid";
 import Title from "@/components/Title";
 
@@ -53,7 +53,7 @@ export async function getServerSideProps() {
   try {
     // Truy vấn tất cả sản phẩm, sắp xếp theo ID giảm dần
     const products = await Product.findAll({
-      order: [["id", "DESC"]],
+      order: [["id", "ASC"]],
     });
 
     return {

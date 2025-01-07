@@ -1,13 +1,13 @@
-import { CartItem } from "@/lib/sequelize";
+import { CartItem } from "@/lib/sequelize2";
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
-    const { productId, userId, quantity } = req.body;
+    const { productId, customer_id, quantity } = req.body;
 
     try {
 
       const [cartItem, created] = await CartItem.findOrCreate({
-        where: { product_id: productId, user_id: userId },
+        where: { product_id: productId, customer_id: customer_id },
         defaults: { quantity }, // Giá trị mặc định nếu tạo mới
       });
       if (!created) {

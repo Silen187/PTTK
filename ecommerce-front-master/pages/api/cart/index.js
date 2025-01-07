@@ -1,16 +1,28 @@
-import { CartItem, Product } from "@/lib/sequelize";
+import { CartItem, Product, User } from "@/lib/sequelize2";
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
-    const { userId } = req.query; // Lấy userId từ query hoặc token nếu cần
+    const { userId } = req.query; // Lấy userId từ query
     if (!userId) {
       return res.status(400).json({ message: "Missing userId parameter." });
     }
 
     try {
-      // Lấy giỏ hàng từ cơ sở dữ liệu
+      // Lấy customer_id từ bảng users dựa vào userId
+      const user = await User.findOne({
+        where: { id: userId },
+        attributes: ["customer_id"], // Lấy customer_id
+      });
+
+      if (!user || !user.customer_id) {
+        return res.status(404).json({ message: "User or customer not found." });
+      }
+
+      const customerId = user.customer_id;
+
+      // Lấy giỏ hàng từ cơ sở dữ liệu dựa trên customer_id
       const cartItems = await CartItem.findAll({
-        where: { user_id: userId },
+        where: { customer_id: customerId },
         include: [
           {
             model: Product,

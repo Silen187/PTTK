@@ -7,7 +7,6 @@ export default function Home() {
   if (status === "loading") {
     return <p>Loading...</p>;
   }
-  console.log(session);
   return (
     <Layout>
       <div className="text-blue-900 flex flex-col items-center mt-10">

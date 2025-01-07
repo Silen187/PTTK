@@ -175,14 +175,15 @@ const Price = styled.div`
   font-weight:400;
 `;
 
-export default function ProductBox({id,title,description,price,images}) {
+export default function ProductBox({id, title, description, price, images, loyalty_points}) {
   const {addProduct} = useContext(CartContext);
-  const url = '/product/'+id;
+  const url = '/product/' + id;
+
   return (
     <ProductWrapper>
       <WhiteBox href={url}>
-        <ImageContainer> {/* Sử dụng ImageContainer để cố định kích thước ảnh */}
-          <img src={images?.[0]} alt={title} style={{ maxWidth: '100%', maxHeight: '100%' }} />
+        <ImageContainer>
+          <img src={images?.[0]} alt={title} />
         </ImageContainer>
       </WhiteBox>
       <ProductInfoBox>
@@ -191,6 +192,7 @@ export default function ProductBox({id,title,description,price,images}) {
           <Price>
             ${price}
           </Price>
+          <span style={{ fontSize: '0.9rem', color: '#555' }}>+{loyalty_points} điểm</span>
           <Button block onClick={() => addProduct(id)} primary outline>
             Thêm vào giỏ
           </Button>

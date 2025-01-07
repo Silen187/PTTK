@@ -4,7 +4,6 @@ import styled from "styled-components";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useSession } from "next-auth/react";
-import Button from "@/components/Button";
 
 const OrdersContainer = styled.div`
   margin-top: 20px;
@@ -28,6 +27,27 @@ const OrderItem = styled.div`
   border-bottom: 1px solid #ddd;
 `;
 
+const VoucherDetails = styled.div`
+  margin-top: 10px;
+  background-color: #f9f9f9;
+  padding: 10px;
+  border-radius: 5px;
+`;
+
+const ConfirmButton = styled.button`
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 15px;
+
+  &:hover {
+    background-color: #45a049;
+  }
+`;
+
 export default function OrdersPage() {
   const { data: session } = useSession();
   const [orders, setOrders] = useState([]);
@@ -48,6 +68,29 @@ export default function OrdersPage() {
     }
   }, [session]);
 
+  const handleConfirmReceived = async (orderId) => {
+    try {
+      const response = await axios.post(`/api/orders/confirm-received`, {
+        orderId,
+        customerId: session.user.customer.id,
+      });
+
+      if (response.data.success) {
+        alert("Đơn hàng đã được xác nhận!");
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order.id === orderId
+              ? { ...order, status: "completed" } // Cập nhật trạng thái đơn hàng
+              : order
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Error confirming order:", error);
+      alert("Có lỗi xảy ra. Vui lòng thử lại.");
+    }
+  };
+
   if (loading) {
     return (
       <Center>
@@ -58,15 +101,15 @@ export default function OrdersPage() {
 
   if (!orders.length) {
     return (
-        <>
-            <Header />
-            <Center>
-                <p>Bạn chưa có đơn hàng nào.</p>
-            </Center>
-        </>
+      <>
+        <Header />
+        <Center>
+          <p>Bạn chưa có đơn hàng nào.</p>
+        </Center>
+      </>
     );
   }
-  console.log(orders[0]);
+
   return (
     <>
       <Header />
@@ -88,6 +131,22 @@ export default function OrdersPage() {
                 <strong>Ngày tạo:</strong>{" "}
                 {new Date(order.createdAt).toLocaleDateString()}
               </p>
+
+              {/* Mã giảm giá được sử dụng */}
+              {order.vouchers && order.vouchers.length > 0 ? (
+                <VoucherDetails>
+                  <p>
+                    <strong>Mã giảm giá:</strong>{" "}
+                    {order.vouchers[0].voucher?.code || "Không có"}
+                  </p>
+                  <p>
+                    <strong>Giảm giá:</strong> -{order.vouchers[0].voucher?.discountValue || 0}$
+                  </p>
+                </VoucherDetails>
+              ) : (
+                <p>Không sử dụng mã giảm giá.</p>
+              )}
+
               <OrderDetails>
                 <h4>Chi tiết đơn hàng:</h4>
                 {order.items.map((item) => (
@@ -99,6 +158,13 @@ export default function OrdersPage() {
                   </OrderItem>
                 ))}
               </OrderDetails>
+
+              {/* Nút xác nhận đã nhận hàng */}
+              {order.status === "pending" && (
+                <ConfirmButton onClick={() => handleConfirmReceived(order.id)}>
+                  Đã nhận hàng
+                </ConfirmButton>
+              )}
             </OrderBox>
           ))}
         </OrdersContainer>
