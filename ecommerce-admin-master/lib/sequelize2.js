@@ -244,6 +244,7 @@ const OrderItem = sequelize.define("OrderItem", {
 OrderItem.belongsTo(Order, { as: "Order", foreignKey: "order_id" });
 Order.hasMany(OrderItem, { foreignKey: "order_id", as: "items" });
 OrderItem.belongsTo(Product, { foreignKey: "product_id", as: "product" });
+Product.hasMany(OrderItem, { foreignKey: "product_id", as: "orderItems" });
 
 // Model Voucher
 const Voucher = sequelize.define("Voucher", {

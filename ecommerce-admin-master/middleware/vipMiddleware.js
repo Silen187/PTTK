@@ -129,56 +129,84 @@ exports.getVipCustomerDetails = async (req, res) => {
 
 
 
-
 // Cập nhật danh sách VIP
 exports.updateVipList = async (req, res) => {
   try {
     const monthAgo = new Date();
     monthAgo.setMonth(monthAgo.getMonth() - 1);
+    // Xóa trạng thái VIP của tất cả khách hàng
+    await Customer.update({ is_vip: false }, { where: {} });
+
+    // Xóa tất cả các bản ghi trong VipHistory
+    await VipHistory.destroy({ where: {} });
+
 
     const top5Spenders = await Customer.findAll({
-      include: {
-        model: Order,
-        attributes: [[sequelize.fn("SUM", sequelize.col("total_price")), "totalSpent"]],
-        where: {
-          created_at: { [sequelize.Op.gte]: monthAgo },
-          status: "completed",
-        },
-      },
-      group: ["Customer.id"],
-      order: [[sequelize.fn("SUM", sequelize.col("total_price")), "DESC"]],
+      attributes: [
+        "id",
+        "name",
+        "email",
+        "phone",
+        "address",
+        "city",
+        "country",
+        "is_vip",
+        "loyalty_points",
+        "deleted",
+        "created_at",
+        "updated_at",
+        [
+          sequelize.literal(`(
+            SELECT SUM(o.total_price)
+            FROM orders AS o
+            WHERE o.customer_id = Customer.id
+              AND o.created_at >= '2024-12-07 17:00:00'
+              AND o.status = 'completed'
+          )`),
+          "totalSpent",
+        ],
+      ],
+      order: [[sequelize.literal("totalSpent"), "DESC"]],
       limit: 5,
-    });
-
+    });    
+    
     const top3Category = await OrderItem.findAll({
       include: [
         {
           model: Product,
-          include: { model: Category, attributes: ["id", "name"] },
+          as: "product", // Alias cho Product
+          include: {
+            model: Category,
+            as: "category", // Alias cho Category
+            attributes: ["id"], // Lấy cột id từ Category
+          },
+          attributes: [], // Không cần thêm cột từ Product
         },
         {
           model: Order,
-          attributes: [],
+          as: "Order", // Alias cho Order
+          attributes: ["customer_id"], // Lấy customer_id từ Order
           where: {
-            created_at: { [sequelize.Op.gte]: monthAgo },
-            status: "completed",
+            created_at: { [sequelize.Op.gte]: "2024-12-08 21:02:50" }, // Điều kiện lọc created_at
+            status: "completed", // Điều kiện lọc status
           },
         },
       ],
       attributes: [
-        [sequelize.fn("COUNT", sequelize.col("OrderItem.product_id")), "totalProducts"],
-        "OrderItem.customer_id",
-        [sequelize.col("Product.Category.id"), "category_id"],
+        [sequelize.fn("COUNT", sequelize.col("OrderItem.product_id")), "totalProducts"], // Đếm số sản phẩm
+        [sequelize.col("order.customer_id"), "customer_id"], // Lấy customer_id qua Order
+        [sequelize.col("product.category.id"), "category_id"], // Lấy category_id qua Product
       ],
-      group: ["OrderItem.customer_id", "Product.Category.id"],
-      order: [[sequelize.fn("COUNT", sequelize.col("OrderItem.product_id")), "DESC"]],
-      limit: 3,
-    });
-
+      group: ["order.customer_id", "product.category.id"], // Nhóm theo customer_id và category_id
+      order: [[sequelize.literal("totalProducts"), "DESC"]], // Sắp xếp theo totalProducts giảm dần
+      limit: 3, // Giới hạn 3 kết quả
+    });    
+    
     const spendingThreshold = 100000;
     const spendingOverThreshold = await Customer.findAll({
       include: {
         model: Order,
+        as: "orders",
         attributes: [[sequelize.fn("SUM", sequelize.col("total_price")), "totalSpent"]],
         where: {
           created_at: { [sequelize.Op.gte]: monthAgo },
@@ -187,13 +215,13 @@ exports.updateVipList = async (req, res) => {
       },
       group: ["Customer.id"],
       having: sequelize.where(
-        sequelize.fn("SUM", sequelize.col("Order.total_price")),
+        sequelize.fn("SUM", sequelize.col("orders.total_price")),
         ">=",
         spendingThreshold
       ),
     });
 
-    const promoteToVip = async (customer, reason) => {
+    const promotetoVip = async (customer, reason) => {
       await customer.update({ is_vip: true });
       await VipHistory.create({
         customer_id: customer.id,
@@ -202,18 +230,18 @@ exports.updateVipList = async (req, res) => {
     };
 
     for (const spender of top5Spenders) {
-      await promoteToVip(spender, "Top5_Monthly");
+      await promotetoVip(spender, "Top5_Monthly");
     }
 
     for (const categoryBuyer of top3Category) {
-      const customer = await Customer.findByPk(categoryBuyer.customer_id);
+      const customer = await Customer.findByPk(categoryBuyer.dataValues.customer_id);
       if (customer) {
-        await promoteToVip(customer, "Top3_Category");
+        await promotetoVip(customer, "Top3_Category");
       }
     }
 
     for (const spender of spendingOverThreshold) {
-      await promoteToVip(spender, "Spending_Over_Threshold");
+      await promotetoVip(spender, "Spending_Over_Threshold");
     }
 
     res.json({ message: "Danh sách VIP đã được cập nhật" });
