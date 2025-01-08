@@ -169,38 +169,53 @@ exports.updateVipList = async (req, res) => {
       order: [[sequelize.literal("totalSpent"), "DESC"]],
       limit: 5,
     });    
+
+    const categories = await Category.findAll({
+      attributes: ["id", "name"], // Lấy ID và tên danh mục
+    });
     
-    const top3Category = await OrderItem.findAll({
-      include: [
-        {
-          model: Product,
-          as: "product", // Alias cho Product
-          include: {
-            model: Category,
-            as: "category", // Alias cho Category
-            attributes: ["id"], // Lấy cột id từ Category
-          },
-          attributes: [], // Không cần thêm cột từ Product
-        },
-        {
-          model: Order,
-          as: "Order", // Alias cho Order
-          attributes: ["customer_id"], // Lấy customer_id từ Order
-          where: {
-            created_at: { [sequelize.Op.gte]: "2024-12-08 21:02:50" }, // Điều kiện lọc created_at
-            status: "completed", // Điều kiện lọc status
-          },
-        },
-      ],
-      attributes: [
-        [sequelize.fn("COUNT", sequelize.col("OrderItem.product_id")), "totalProducts"], // Đếm số sản phẩm
-        [sequelize.col("order.customer_id"), "customer_id"], // Lấy customer_id qua Order
-        [sequelize.col("product.category.id"), "category_id"], // Lấy category_id qua Product
-      ],
-      group: ["order.customer_id", "product.category.id"], // Nhóm theo customer_id và category_id
-      order: [[sequelize.literal("totalProducts"), "DESC"]], // Sắp xếp theo totalProducts giảm dần
-      limit: 3, // Giới hạn 3 kết quả
-    });    
+    
+    const results = await Promise.all(
+      categories.map(async (category) => {
+        const top3CustomersForCategory = await OrderItem.findAll({
+          include: [
+            {
+              model: Product,
+              as: "product",
+              include: {
+                model: Category,
+                as: "category",
+                attributes: ["id", "name"],
+                where: { id: category.id },
+              },
+              attributes: [],
+            },
+            {
+              model: Order,
+              as: "Order",
+              attributes: ["customer_id"],
+              where: {
+                created_at: { [sequelize.Op.gte]: "2024-12-08 21:02:50" },
+                status: "completed",
+              },
+            },
+          ],
+          attributes: [
+            [sequelize.fn("COUNT", sequelize.col("OrderItem.product_id")), "totalProducts"],
+            [sequelize.col("order.customer_id"), "customer_id"],
+            [sequelize.col("product.category.id"), "category_id"],
+          ],
+          group: ["order.customer_id", "product.category.id"],
+          order: [[sequelize.literal("totalProducts"), "DESC"]],
+          limit: 3,
+        });
+    
+        return {
+          category: category.name,
+          topCustomers: top3CustomersForCategory,
+        };
+      })
+    );    
     
     const spendingThreshold = 100000;
     const spendingOverThreshold = await Customer.findAll({
@@ -233,10 +248,12 @@ exports.updateVipList = async (req, res) => {
       await promotetoVip(spender, "Top5_Monthly");
     }
 
-    for (const categoryBuyer of top3Category) {
-      const customer = await Customer.findByPk(categoryBuyer.dataValues.customer_id);
-      if (customer) {
-        await promotetoVip(customer, "Top3_Category");
+    for (const category of results) {
+      for (const customerInfo of category.topCustomers) {
+        const customer = await Customer.findByPk(customerInfo.dataValues.customer_id);
+        if (customer) {
+          await promotetoVip(customer, "Top3_Category");
+        }
       }
     }
 
